@@ -86,87 +86,87 @@ public function set_email_data_from_webhooks( $webhooks ) {
 	 * This query is dynamically built depending on the filters chosen by the user
 	 *
 	 */
-	public function get_filter_delegates( $filters, $event_id, $delegates = null ) {
+	public function get_filter_users( $filters, $event_id, $users = null ) {
 
 		// build select
 		$select = "SELECT 
-					delegates.id AS id,
-					delegates.title AS title,
-					delegates.first_name AS first_name,
-					delegates.last_name AS last_name,
-					delegates.email AS email,
-					delegates_meta.company AS company,
-					delegates_meta.job_title AS job_title,
-					delegates_meta.address_1 AS address_1,
-					delegates_meta.address_2 AS address_2,
-					delegates_meta.town_city AS town_city,
-					delegates_meta.county AS county,
-					delegates_meta.postcode AS postcode,
-					delegates_meta.phone AS phone,
-					delegates_meta.mobile AS mobile,
-					IF(delegates_meta.allow_contact=1, 'Yes', 'No') AS allow_contact,
-					IF(delegates_meta.delegate_list=1, 'Yes', 'No') AS delegate_list,
-					IF(delegates_meta.post_event_contact=1, 'Yes', 'No') AS post_event_contact,
-					IF(delegates_meta.specific_requirements=1, 'Yes', 'No') AS specific_requirements,
-					IF(delegates_meta.evaluation=1, 'Yes', 'No') AS evaluation,
+					users.id AS id,
+					users.title AS title,
+					users.first_name AS first_name,
+					users.last_name AS last_name,
+					users.email AS email,
+					users_meta.company AS company,
+					users_meta.job_title AS job_title,
+					users_meta.address_1 AS address_1,
+					users_meta.address_2 AS address_2,
+					users_meta.town_city AS town_city,
+					users_meta.county AS county,
+					users_meta.postcode AS postcode,
+					users_meta.phone AS phone,
+					users_meta.mobile AS mobile,
+					IF(users_meta.allow_contact=1, 'Yes', 'No') AS allow_contact,
+					IF(users_meta.user_list=1, 'Yes', 'No') AS user_list,
+					IF(users_meta.post_event_contact=1, 'Yes', 'No') AS post_event_contact,
+					IF(users_meta.specific_requirements=1, 'Yes', 'No') AS specific_requirements,
+					IF(users_meta.evaluation=1, 'Yes', 'No') AS evaluation,
 					tickets.ticket_name AS ticket_name,
-					delegates_lists.list_name AS delegate_list_name,
-					delegates.event_id AS event_id,
-					IF(workshops_delegates_registrations.id IS NULL, 'NULL', GROUP_CONCAT( CONCAT_WS('~', event_agenda_sessions.session_title, workshops_items.title, ';'))) AS workshops
+					users_lists.list_name AS user_list_name,
+					users.event_id AS event_id,
+					IF(workshops_users_registrations.id IS NULL, 'NULL', GROUP_CONCAT( CONCAT_WS('~', event_agenda_sessions.session_title, workshops_items.title, ';'))) AS workshops
 					";
 
 		// from section
 		$from = "
 				FROM 
-					delegates 
+					users 
 				LEFT JOIN
-					delegates_meta
+					users_meta
 				ON 
-					delegates.id = delegates_meta.id
+					users.id = users_meta.id
 				JOIN
-					orders_tickets
+					users_tickets
 				ON
-					delegates.id = orders_tickets.user_id
+					users.id = users_tickets.user_id
 				LEFT JOIN
-					delegates_lists_tickets
+					users_lists_tickets
 				ON
-					orders_tickets.ticket_id = delegates_lists_tickets.ticket_id
+					users_tickets.ticket_id = users_lists_tickets.ticket_id
 				JOIN
 					tickets
 				ON 	
-					orders_tickets.ticket_id = tickets.id
+					users_tickets.ticket_id = tickets.id
 				LEFT JOIN
-					delegates_lists
+					users_lists
 				ON 
-					delegates_lists_tickets.delegate_list_id = delegates_lists.id
+					users_lists_tickets.user_list_id = users_lists.id
 				JOIN
 					invoices
 				ON
-					orders_tickets.order_id = invoices.order_id
+					users_tickets.order_id = invoices.order_id
 					
 				LEFT JOIN
-					workshops_delegates_registrations
+					workshops_users_registrations
 				ON 
-					workshops_delegates_registrations.delegates_id = delegates.id
+					workshops_users_registrations.users_id = users.id
 				LEFT JOIN
 					workshops_items
 				ON
-					workshops_items.id = workshops_delegates_registrations.workshops_items_id
+					workshops_items.id = workshops_users_registrations.workshops_items_id
 				AND
-					workshops_delegates_registrations.record_status = 1	
+					workshops_users_registrations.record_status = 1	
 				LEFT JOIN 
-					event_agenda_sessions 
+					agenda_sessions 
 				ON 
-					event_agenda_sessions.id = workshops_delegates_registrations.event_agenda_sessions_id 
+					agenda_sessions.id = workshops_users_registrations.agenda_sessions_id 
 			";
 
 		// start preparing the where
 		$where = "	WHERE
-					 delegates.event_id = ?
+					 users.event_id = ?
 					 AND
-					 delegates.record_status = 1
+					 users.record_status = 1
 					 AND
-					 orders_tickets.record_status = 1
+					 users_tickets.record_status = 1
 					 AND
 					 invoices.invoice_status NOT IN (4,5,6)
 					 ";
@@ -182,10 +182,10 @@ public function set_email_data_from_webhooks( $webhooks ) {
 
 			// build 'IN' and add WHERE
 			if( in_array( "none", $filters[ 'breakouts' ] ) ) {
-				$where .= " AND workshops_delegates_registrations.workshops_items_id IS NULL";
+				$where .= " AND workshops_users_registrations.workshops_items_id IS NULL";
 			} else {
 				$in    = implode( ',', array_fill( 0, count( $filters[ 'breakouts' ] ), '?' ) );
-				$where .= " AND workshops_delegates_registrations.workshops_items_id IN (" . $in . ")";
+				$where .= " AND workshops_users_registrations.workshops_items_id IN (" . $in . ")";
 			}
 
 
@@ -199,38 +199,38 @@ public function set_email_data_from_webhooks( $webhooks ) {
 
 		if( isset( $filters[ 'extra_questions' ] ) && count( $filters[ 'extra_questions' ] ) > 0 ) {
 
-			$select .= ",CONCAT_WS(';', CONCAT_WS(',', delegates_extras_questions.label, delegates_extras.q_value) ) AS extra_questions";
+			$select .= ",CONCAT_WS(';', CONCAT_WS(',', users_extras_questions.label, users_extras.q_value) ) AS extra_questions";
 
 			$from .= "   				
 						LEFT JOIN
-							delegates_extras
+							users_extras
 						ON
-							delegates_extras.user_id = delegates.id
+							users_extras.user_id = users.id
 						
 						JOIN
-							delegates_extras_questions_meta
+							users_extras_questions_meta
 						ON
-							delegates_extras_questions_meta.q_value = delegates_extras.q_value
+							users_extras_questions_meta.q_value = users_extras.q_value
 							
 						JOIN
-							delegates_extras_questions
+							users_extras_questions
 						ON
-							delegates_extras_questions.q_key = delegates_extras.q_key ";
+							users_extras_questions.q_key = users_extras.q_key ";
 
 
 			$in    = implode( ',', array_fill( 0, count( $filters[ 'extra_questions' ] ), '?' ) );
-			$where .= " AND delegates_extras_questions_meta.id IN (" . $in . ")";
+			$where .= " AND users_extras_questions_meta.id IN (" . $in . ")";
 
 			foreach( $filters[ 'extra_questions' ] as $b ) {
 				$ref_counter[] = $b;
 			}
 		}
 
-		if( isset( $filters[ 'delegate_list' ] ) && count( $filters[ 'delegate_list' ] ) > 0 ) {
-			$in    = implode( ',', array_fill( 0, count( $filters[ 'delegate_list' ] ), '?' ) );
-			$where .= " AND delegates_lists.id IN (" . $in . ")";
+		if( isset( $filters[ 'user_list' ] ) && count( $filters[ 'user_list' ] ) > 0 ) {
+			$in    = implode( ',', array_fill( 0, count( $filters[ 'user_list' ] ), '?' ) );
+			$where .= " AND users_lists.id IN (" . $in . ")";
 
-			foreach( $filters[ 'delegate_list' ] as $b ) {
+			foreach( $filters[ 'user_list' ] as $b ) {
 				$ref_counter[] = $b;
 			}
 		}
@@ -244,11 +244,11 @@ public function set_email_data_from_webhooks( $webhooks ) {
 			}
 		}
 
-		if( isset( $delegates ) && count( $delegates ) > 0 ) {
-			$in    = implode( ',', array_fill( 0, count( $delegates ), '?' ) );
-			$where .= " AND delegates.id IN (" . $in . ")";
+		if( isset( $users ) && count( $users ) > 0 ) {
+			$in    = implode( ',', array_fill( 0, count( $users ), '?' ) );
+			$where .= " AND users.id IN (" . $in . ")";
 
-			foreach( $delegates as $b ) {
+			foreach( $users as $b ) {
 				$ref_counter[] = $b;
 			}
 		}
@@ -269,7 +269,7 @@ public function set_email_data_from_webhooks( $webhooks ) {
 				$to_d = $d->format( "Y-m-d H:i:s" );
 
 				// build me some sql
-				$where .= " AND delegates.created BETWEEN ? AND ?";
+				$where .= " AND users.created BETWEEN ? AND ?";
 
 				$ref_counter[] = $from_d;
 				$ref_counter[] = $to_d;
@@ -308,7 +308,7 @@ public function set_email_data_from_webhooks( $webhooks ) {
 
 			// if we can execute the query
 			if( $sth->execute() ) {
-				return $sth->fetchAll( \PDO::FETCH_FUNC, [ $this, '_get_filter_delegates' ] );
+				return $sth->fetchAll( \PDO::FETCH_FUNC, [ $this, '_get_filter_users' ] );
 
 			}
 
@@ -323,9 +323,9 @@ public function set_email_data_from_webhooks( $webhooks ) {
 
 // 0: id    1: title    2: first_name   3: last_name    4: email    5: company  6: job_title
 // 7: address_1 8: address_2    9. town_city    10. county   11. postcode    12. phone   13. mobile
-// 14. allow_contact    15. delegate_list   16.post_event_contact   17. specific_requirements
-// 18. evaluation   19. ticket_name     20. delegate_list_name  21. event_id    22. workshops
-	public function _get_filter_delegates() {
+// 14. allow_contact    15. user_list   16.post_event_contact   17. specific_requirements
+// 18. evaluation   19. ticket_name     20. user_list_name  21. event_id    22. workshops
+	public function _get_filter_users() {
 
 		$data = func_get_args();
 
@@ -344,12 +344,12 @@ public function set_email_data_from_webhooks( $webhooks ) {
 		$array[ 'phone' ]                 = $this->valid_string( $data[ 12 ] );
 		$array[ 'mobile' ]                = $this->valid_string( $data[ 13 ] );
 		$array[ 'allow_contact' ]         = $this->valid_string( $data[ 14 ] );
-		$array[ 'delegate_list' ]         = $this->valid_string( $data[ 15 ] );
+		$array[ 'user_list' ]         = $this->valid_string( $data[ 15 ] );
 		$array[ 'post_event_contact' ]    = $this->valid_string( $data[ 16 ] );
 		$array[ 'specific_requirements' ] = $this->valid_string( $data[ 17 ] );
 		$array[ 'evaluation' ]            = $this->valid_string( $data[ 18 ] );
 		$array[ 'ticket_name' ]           = $this->valid_string( $data[ 19 ] );
-		$array[ 'delegate_list_name' ]    = $this->valid_string( $data[ 20 ] );
+		$array[ 'user_list_name' ]    = $this->valid_string( $data[ 20 ] );
 		$array[ 'event_id' ]              = $this->valid_string( $data[ 21 ] );
 		$array[ 'workshops' ]             = $this->tidy_workshops( $data[ 22 ] );
 		$array                            = array_merge( $this->explode_workshops( $data[ 22 ] ), $array );
